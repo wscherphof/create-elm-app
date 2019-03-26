@@ -44,6 +44,8 @@ You can find the most recent version of this guide [here](https://github.com/hal
   * [Opting Out of Caching](#opting-out-of-caching)
   * [Offline-First Considerations](#offline-first-considerations)
   * [Progressive Web App Metadata](#progressive-web-app-metadata)
+* [Overriding Webpack Config](#overriding-webpack-config)
+* [Configuring the Proxy Manually](#configuring-the-proxy-manually)
 * [Deployment](#deployment)
   * [Building for Relative Paths](#building-for-relative-paths)
   * [Static Server](#static-server)
@@ -131,7 +133,7 @@ Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
 The page will reload if you make edits.
 You will also see any lint errors in the console.
 
-You may change the listening port number by using the `PORT` environment variable.
+You may change the listening port number by using the `PORT` environment variable. For example type `PORT=8000 elm-app start ` into the terminal/bash to run it from: [http://localhost:8000/](http://localhost:8000/).
 
 ### `elm-app install`
 
@@ -183,9 +185,7 @@ To turn on/off Elm Debugger explicitly, set `ELM_DEBUGGER` environment variable 
 
 ## Dead code elimination
 
-Create Elm App comes with an opinionated setup for dead code elimination which is disabled by default, because it may break your code.
-
-You can enable it by setting `DEAD_CODE_ELIMINATION` environment variable to `true`
+Create Elm App comes with an setup for dead code elimination which relies on the elm compiler flag `--optimize` and `uglifyjs`.
 
 ## Changing the base path of the assets in the HTML
 
@@ -759,6 +759,62 @@ icons, names, and branding colors to use when the web app is displayed.
 provides more context about what each field means, and how your customizations
 will affect your users' experience.
 
+## Overriding Webpack Config
+
+Create Elm App allows Webpack config overrides without [ejecting](#elm-app-eject).
+
+Create a CommonJS module with the name `elmapp.config.js` in the root directory of your project. The module has to export an object with `"configureWebpack"` property as shown in the example.
+
+```js
+module.exports = {
+  configureWebpack: (config, env) => {
+    // Manipulate the config object and return it.
+    return config;
+  }
+}
+```
+
+Mutate the configuration directly or use [webpack-merge](https://www.npmjs.com/package/webpack-merge) to override the config.
+
+`env` variable will help you distinguish `"development"` from `"production"` for environment-specific overrides.
+
+## Configuring the Proxy Manually
+ 
+If the `proxy` option is not flexible enough for you, you can get direct access to the Express app instance and hook up your own proxy middleware.
+
+You can use this feature in conjunction with the `proxy` property in `elmapp.config.js`, but it is recommended you consolidate all of your logic into `setupProxy` property`.
+
+First, install http-proxy-middleware using npm:
+
+```
+$ npm init --yes
+$ npm install http-proxy-middleware --save
+```
+
+Next, create `elmapp.config.js` in the root of your project and place the following contents in it:
+
+```js
+const proxy = require('http-proxy-middleware');
+
+module.exports = {
+  setupProxy: function(app) {
+    // ...
+  }
+};
+```
+
+You can now register proxies as you wish! Here's an example using the above http-proxy-middleware:
+
+```js
+const proxy = require('http-proxy-middleware');
+
+module.exports = {
+  setupProxy: function(app) {
+    app.use(proxy('/api', { target: 'http://localhost:5000/' }));
+  }
+};
+```
+
 ## Deployment
 
 `elm-app build` creates a `build` directory with a production build of your app. Set up your favourite HTTP server so that a visitor to your site is served `index.html`, and requests to static paths like `/static/js/main.<hash>.js` are served with the contents of the `/static/js/main.<hash>.js` file.
@@ -806,7 +862,14 @@ Since netlify runs the build step on their server we need to install create-elm-
     ...
 }
 ```
-#### Step 4: Go to the netlify settings and set the build step to `npm run build`
+#### Step 4: Add a netlify.toml file in the repo's root
+```
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+```
+#### Step 5: Go to the netlify settings and set the publish directory to `build` and the build command to `npm run build`
 This step is important to make sure netlify uses the correct build command.
 
 ### GitHub Pages

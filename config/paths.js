@@ -80,5 +80,6 @@ module.exports = {
   publicUrl: getPublicUrl(config),
   servedPath: getServedPath(config),
   proxy: config.proxy,
+  setupProxy: config.setupProxy,
   configureWebpack
 };
